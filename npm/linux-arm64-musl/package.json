@@ -1,0 +1,30 @@
+{
+  "name": "@unrealworks/rbx-dom-linux-arm64-musl",
+  "version": "0.0.0",
+  "cpu": [
+    "arm64"
+  ],
+  "main": "rbx-dom.linux-arm64-musl.node",
+  "files": [
+    "rbx-dom.linux-arm64-musl.node"
+  ],
+  "description": "Node.js bindings for the rbx-dom Roblox DOM libraries",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.17"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rojo-rbx/rbx-dom-napi.git"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
+  "os": [
+    "linux"
+  ],
+  "libc": [
+    "musl"
+  ]
+}

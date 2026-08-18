@@ -1,0 +1,27 @@
+{
+  "name": "@unrealworks/rbx-dom-darwin-x64",
+  "version": "0.0.0",
+  "cpu": [
+    "x64"
+  ],
+  "main": "rbx-dom.darwin-x64.node",
+  "files": [
+    "rbx-dom.darwin-x64.node"
+  ],
+  "description": "Node.js bindings for the rbx-dom Roblox DOM libraries",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.17"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rojo-rbx/rbx-dom-napi.git"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
+  },
+  "os": [
+    "darwin"
+  ]
+}
