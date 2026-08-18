@@ -8,8 +8,8 @@
   "files": [
     "index.js",
     "index.d.ts",
-    "README.md",
-    "*.node"
+    "native/index.js",
+    "README.md"
   ],
   "engines": {
     "node": ">=20.17"
@@ -17,8 +17,8 @@
   "scripts": {
     "format": "cargo fmt --all",
     "lint": "cargo clippy --workspace --all-targets -- -D warnings",
-    "build": "napi build --platform --release --no-js --dts native/index.d.ts --manifest-path native/Cargo.toml --output-dir .",
-    "build:debug": "napi build --platform --no-js --dts native/index.d.ts --manifest-path native/Cargo.toml --output-dir .",
+    "build": "napi build --platform --release --dts index.d.ts --manifest-path native/Cargo.toml --output-dir native",
+    "build:debug": "napi build --platform --dts index.d.ts --manifest-path native/Cargo.toml --output-dir native",
     "artifacts": "napi artifacts --output-dir artifacts",
     "prepublishOnly": "napi prepublish -t npm",
     "test": "node --test test/**/*.test.js",
