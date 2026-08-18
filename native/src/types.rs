@@ -6,15 +6,16 @@ use napi::bindgen_prelude::Buffer;
 use napi::Result;
 use napi_derive::napi;
 use rbx_types::{
-    Axes, BinaryString, BrickColor, CFrame, Color3, Color3uint8, ColorSequence,
-    ColorSequenceKeypoint, Content, ContentId, CustomPhysicalProperties, Enum, EnumItem, Faces,
-    Font, FontStyle, FontWeight, MaterialColors, Matrix3, NetAssetRef, NumberRange, NumberSequence,
-    NumberSequenceKeypoint, PhysicalProperties, Ray, Rect, Ref, Region3, Region3int16,
-    SecurityCapabilities, SharedString, Tags, UDim, UDim2, UniqueId, Vector2, Vector2int16,
-    Vector3, Vector3int16,
+    Attributes as UpstreamAttributes, Axes, BinaryString, BrickColor, CFrame, Color3, Color3uint8,
+    ColorSequence, ColorSequenceKeypoint, Content, ContentId, CustomPhysicalProperties, Enum,
+    EnumItem, Faces, Font, FontStyle, FontWeight, MaterialColors, Matrix3, NetAssetRef,
+    NumberRange, NumberSequence, NumberSequenceKeypoint, PhysicalProperties, Ray, Rect, Ref,
+    Region3, Region3int16, SecurityCapabilities, SharedString, Tags, TerrainMaterials, UDim, UDim2,
+    UniqueId, Vector2, Vector2int16, Vector3, Vector3int16,
 };
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde_json::Value;
 
 use crate::dom::{parse_variant, ref_string, variant_to_value};
 use crate::error::{invalid_arg, upstream_error};
@@ -200,6 +201,26 @@ pub fn font_regular(family: String) -> Result<String> {
     to_json(&Font::regular(&family))
 }
 
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct FontParts {
+    family: String,
+    weight: u16,
+    style: u8,
+    cached_face_id: Option<String>,
+}
+
+#[napi(js_name = "fontParts")]
+pub fn font_parts(value_json: String) -> Result<String> {
+    let value: Font = from_json(&value_json)?;
+    to_json(&FontParts {
+        family: value.family,
+        weight: value.weight.as_u16(),
+        style: value.style.as_u8(),
+        cached_face_id: value.cached_face_id,
+    })
+}
+
 #[napi(js_name = "brickColorByName")]
 pub fn brick_color_by_name(name: String) -> Result<String> {
     let color = BrickColor::from_name(&name)
@@ -212,6 +233,12 @@ pub fn brick_color_by_number(number: u32) -> Result<String> {
     let color = BrickColor::from_number(checked_u16(number, "number")?)
         .ok_or_else(|| invalid_arg(format!("unknown BrickColor number {number}")))?;
     to_json(&color)
+}
+
+#[napi(js_name = "brickColorToColor3uint8")]
+pub fn brick_color_to_color3uint8(value_json: String) -> Result<String> {
+    let value: BrickColor = from_json(&value_json)?;
+    to_json(&value.to_color3uint8())
 }
 
 #[napi(js_name = "enumValue")]
@@ -236,11 +263,35 @@ pub fn ref_none() -> String {
     ref_string(Ref::none())
 }
 
+#[napi(js_name = "refNew")]
+pub fn ref_new() -> String {
+    ref_string(Ref::new())
+}
+
+#[napi(js_name = "refIsSome")]
+pub fn ref_is_some(value: String) -> Result<bool> {
+    Ok(Ref::from_str(&value)
+        .map_err(|error| invalid_arg(format!("invalid Ref {value:?}: {error}")))?
+        .is_some())
+}
+
+#[napi(js_name = "refIsNone")]
+pub fn ref_is_none(value: String) -> Result<bool> {
+    Ok(Ref::from_str(&value)
+        .map_err(|error| invalid_arg(format!("invalid Ref {value:?}: {error}")))?
+        .is_none())
+}
+
 #[napi(js_name = "uniqueIdNow")]
 pub fn unique_id_now() -> Result<String> {
     UniqueId::now()
         .map(|value| value.to_string())
         .map_err(|error| upstream_error("UniqueId::now", error))
+}
+
+#[napi(js_name = "uniqueIdNil")]
+pub fn unique_id_nil() -> String {
+    UniqueId::nil().to_string()
 }
 
 #[napi(js_name = "uniqueId")]
@@ -286,6 +337,21 @@ pub fn axes_bits(value_json: String) -> Result<u32> {
     Ok(value.bits() as u32)
 }
 
+#[napi(js_name = "axesEmpty")]
+pub fn axes_empty() -> Result<String> {
+    to_json(&Axes::empty())
+}
+
+#[napi(js_name = "axesAll")]
+pub fn axes_all() -> Result<String> {
+    to_json(&Axes::all())
+}
+
+#[napi(js_name = "axesContains")]
+pub fn axes_contains(value_json: String, other_json: String) -> Result<bool> {
+    Ok(from_json::<Axes>(&value_json)?.contains(from_json::<Axes>(&other_json)?))
+}
+
 #[napi(js_name = "facesFromBits")]
 pub fn faces_from_bits(bits: u32) -> Result<String> {
     let value = Faces::from_bits(checked_u8(bits, "bits")?)
@@ -297,6 +363,21 @@ pub fn faces_from_bits(bits: u32) -> Result<String> {
 pub fn faces_bits(value_json: String) -> Result<u32> {
     let value: Faces = from_json(&value_json)?;
     Ok(value.bits() as u32)
+}
+
+#[napi(js_name = "facesEmpty")]
+pub fn faces_empty() -> Result<String> {
+    to_json(&Faces::empty())
+}
+
+#[napi(js_name = "facesAll")]
+pub fn faces_all() -> Result<String> {
+    to_json(&Faces::all())
+}
+
+#[napi(js_name = "facesContains")]
+pub fn faces_contains(value_json: String, other_json: String) -> Result<bool> {
+    Ok(from_json::<Faces>(&value_json)?.contains(from_json::<Faces>(&other_json)?))
 }
 
 #[napi(js_name = "securityCapabilitiesBits")]
@@ -349,14 +430,81 @@ pub fn physical_properties(
     to_json(&value)
 }
 
+#[napi(js_name = "physicalPropertiesDefault")]
+pub fn physical_properties_default() -> Result<String> {
+    to_json(&PhysicalProperties::Default)
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PhysicalPropertiesParts {
+    density: f32,
+    friction: f32,
+    elasticity: f32,
+    friction_weight: f32,
+    elasticity_weight: f32,
+    acoustic_absorption: f32,
+}
+
+#[napi(js_name = "physicalPropertiesParts")]
+pub fn physical_properties_parts(value_json: String) -> Result<Option<String>> {
+    let value: PhysicalProperties = from_json(&value_json)?;
+    match value {
+        PhysicalProperties::Default => Ok(None),
+        PhysicalProperties::Custom(value) => to_json(&PhysicalPropertiesParts {
+            density: value.density(),
+            friction: value.friction(),
+            elasticity: value.elasticity(),
+            friction_weight: value.friction_weight(),
+            elasticity_weight: value.elasticity_weight(),
+            acoustic_absorption: value.acoustic_absorption(),
+        })
+        .map(Some),
+    }
+}
+
 #[napi(js_name = "binaryString")]
 pub fn binary_string(data: Buffer) -> Buffer {
     Buffer::from(BinaryString::from(data.to_vec()).into_vec())
 }
 
+#[napi(js_name = "sharedString")]
+pub fn shared_string(data: Buffer) -> Result<String> {
+    to_json(&SharedString::new(data.to_vec()))
+}
+
+#[napi(js_name = "sharedStringData")]
+pub fn shared_string_data(value_json: String) -> Result<Buffer> {
+    let value: SharedString = from_json(&value_json)?;
+    Ok(Buffer::from(value.data().to_vec()))
+}
+
+#[napi(js_name = "sharedStringHashBytes")]
+pub fn shared_string_hash_bytes(value_json: String) -> Result<Buffer> {
+    let value: SharedString = from_json(&value_json)?;
+    Ok(Buffer::from(value.hash().as_bytes().to_vec()))
+}
+
 #[napi(js_name = "sharedStringHash")]
 pub fn shared_string_hash(data: Buffer) -> String {
     format!("{}", SharedString::new(data.to_vec()).hash())
+}
+
+#[napi(js_name = "netAssetRef")]
+pub fn net_asset_ref(data: Buffer) -> Result<String> {
+    to_json(&NetAssetRef::new(data.to_vec()))
+}
+
+#[napi(js_name = "netAssetRefData")]
+pub fn net_asset_ref_data(value_json: String) -> Result<Buffer> {
+    let value: NetAssetRef = from_json(&value_json)?;
+    Ok(Buffer::from(value.data().to_vec()))
+}
+
+#[napi(js_name = "netAssetRefHashBytes")]
+pub fn net_asset_ref_hash_bytes(value_json: String) -> Result<Buffer> {
+    let value: NetAssetRef = from_json(&value_json)?;
+    Ok(Buffer::from(value.hash().as_bytes().to_vec()))
 }
 
 #[napi(js_name = "netAssetRefHash")]
@@ -379,6 +527,20 @@ pub fn tags_decode(data: Buffer) -> Result<String> {
     let value = Tags::decode(&data).map_err(|error| upstream_error("Tags::decode", error))?;
     let tags: Vec<_> = value.iter().map(str::to_owned).collect();
     to_json(&tags)
+}
+
+#[napi(js_name = "tagsLength")]
+pub fn tags_length(data: Buffer) -> Result<u32> {
+    Ok(Tags::decode(&data)
+        .map_err(|error| upstream_error("Tags::decode", error))?
+        .len() as u32)
+}
+
+#[napi(js_name = "tagsIsEmpty")]
+pub fn tags_is_empty(data: Buffer) -> Result<bool> {
+    Ok(Tags::decode(&data)
+        .map_err(|error| upstream_error("Tags::decode", error))?
+        .is_empty())
 }
 
 #[napi(js_name = "materialColorsDefault")]
@@ -411,4 +573,168 @@ pub fn variant_type(value_json: String) -> Result<String> {
     let value: serde_json::Value = from_json(&value_json)?;
     let value = parse_variant(value)?;
     Ok(format!("{:?}", value.ty()))
+}
+
+#[napi]
+pub struct Attributes {
+    inner: UpstreamAttributes,
+}
+
+#[napi]
+impl Attributes {
+    #[napi(constructor)]
+    pub fn new(value_json: Option<String>) -> Result<Self> {
+        let inner = match value_json {
+            Some(value_json) => from_json(&value_json)?,
+            None => UpstreamAttributes::new(),
+        };
+        Ok(Self { inner })
+    }
+
+    #[napi(js_name = "get")]
+    pub fn get(&self, key: String) -> Result<Option<String>> {
+        self.inner
+            .get(key)
+            .map(|value| to_json(&variant_to_value(value)?))
+            .transpose()
+    }
+
+    #[napi(js_name = "set")]
+    pub fn set(&mut self, key: String, value_json: String) -> Result<Option<String>> {
+        let value: Value = from_json(&value_json)?;
+        let value = parse_variant(value)?;
+        self.inner
+            .insert(key, value)
+            .map(|previous| to_json(&variant_to_value(&previous)?))
+            .transpose()
+    }
+
+    #[napi(js_name = "remove")]
+    pub fn remove(&mut self, key: String) -> Result<Option<String>> {
+        self.inner
+            .remove(key)
+            .map(|value| to_json(&variant_to_value(&value)?))
+            .transpose()
+    }
+
+    #[napi(js_name = "clear")]
+    pub fn clear(&mut self) {
+        self.inner.clear();
+    }
+
+    #[napi(js_name = "length")]
+    pub fn length(&self) -> u32 {
+        self.inner.len() as u32
+    }
+
+    #[napi(js_name = "isEmpty")]
+    pub fn is_empty(&self) -> bool {
+        self.inner.is_empty()
+    }
+
+    #[napi(js_name = "toJson")]
+    pub fn to_json(&self) -> Result<String> {
+        to_json(&self.inner)
+    }
+
+    #[napi(js_name = "encode")]
+    pub fn encode(&self) -> Result<Buffer> {
+        let mut output = Vec::new();
+        self.inner
+            .to_writer(&mut output)
+            .map_err(|error| upstream_error("Attributes::to_writer", error))?;
+        Ok(Buffer::from(output))
+    }
+}
+
+#[napi(js_name = "attributesEncode")]
+pub fn attributes_encode(value_json: String) -> Result<Buffer> {
+    let value: UpstreamAttributes = from_json(&value_json)?;
+    let mut output = Vec::new();
+    value
+        .to_writer(&mut output)
+        .map_err(|error| upstream_error("Attributes::to_writer", error))?;
+    Ok(Buffer::from(output))
+}
+
+#[napi(js_name = "attributesDecode")]
+pub fn attributes_decode(data: Buffer) -> Result<Attributes> {
+    Ok(Attributes {
+        inner: UpstreamAttributes::from_reader(&data[..])
+            .map_err(|error| upstream_error("Attributes::from_reader", error))?,
+    })
+}
+
+#[napi(js_name = "contentKind")]
+pub fn content_kind(value_json: String) -> Result<String> {
+    let value: Content = from_json(&value_json)?;
+    Ok(match value.value() {
+        rbx_types::ContentType::None => "None",
+        rbx_types::ContentType::Uri(_) => "Uri",
+        rbx_types::ContentType::Object(_) => "Object",
+        _ => "Unknown",
+    }
+    .to_owned())
+}
+
+#[napi(js_name = "contentUriValue")]
+pub fn content_uri_value(value_json: String) -> Result<Option<String>> {
+    Ok(from_json::<Content>(&value_json)?
+        .as_uri()
+        .map(str::to_owned))
+}
+
+#[napi(js_name = "contentObjectValue")]
+pub fn content_object_value(value_json: String) -> Result<Option<String>> {
+    Ok(from_json::<Content>(&value_json)?
+        .as_object()
+        .map(ref_string))
+}
+
+#[napi(js_name = "contentIdValue")]
+pub fn content_id_value(value_json: String) -> Result<String> {
+    Ok(from_json::<ContentId>(&value_json)?.as_str().to_owned())
+}
+
+#[napi(js_name = "matrixTranspose")]
+pub fn matrix_transpose(value_json: String) -> Result<String> {
+    let value: Matrix3 = from_json(&value_json)?;
+    to_json(&value.transpose())
+}
+
+#[napi(js_name = "matrixBasicRotationId")]
+pub fn matrix_basic_rotation_id(value_json: String) -> Result<Option<u8>> {
+    Ok(from_json::<Matrix3>(&value_json)?.to_basic_rotation_id())
+}
+
+#[napi(js_name = "matrixFromBasicRotationId")]
+pub fn matrix_from_basic_rotation_id(id: u32) -> Result<String> {
+    to_json(
+        &Matrix3::from_basic_rotation_id(checked_u8(id, "id")?)
+            .map_err(|error| upstream_error("Matrix3::from_basic_rotation_id", error))?,
+    )
+}
+
+#[napi(js_name = "materialColorsGet")]
+pub fn material_colors_get(value_json: String, material: String) -> Result<String> {
+    let value: MaterialColors = from_json(&value_json)?;
+    let material = material
+        .parse::<TerrainMaterials>()
+        .map_err(|error| invalid_arg(format!("invalid terrain material: {error}")))?;
+    to_json(&value.get_color(material))
+}
+
+#[napi(js_name = "materialColorsSet")]
+pub fn material_colors_set(
+    value_json: String,
+    material: String,
+    color_json: String,
+) -> Result<String> {
+    let mut value: MaterialColors = from_json(&value_json)?;
+    let material = material
+        .parse::<TerrainMaterials>()
+        .map_err(|error| invalid_arg(format!("invalid terrain material: {error}")))?;
+    let color: Color3uint8 = from_json(&color_json)?;
+    value.set_color(material, color);
+    to_json(&value)
 }

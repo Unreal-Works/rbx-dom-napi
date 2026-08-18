@@ -1,10 +1,9 @@
-"use strict";
-
-const { spawnSync } = require("node:child_process");
-const path = require("node:path");
+import { spawnSync } from "node:child_process";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const npm = process.platform === "win32" ? "npm.cmd" : "npm";
-const root = path.resolve(__dirname, "..");
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const env = { ...process.env };
 for (const key of Object.keys(env)) {
   if (key.toLowerCase().startsWith("npm_config_")) delete env[key];

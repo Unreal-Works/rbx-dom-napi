@@ -142,3 +142,95 @@ test("camelCase options and large integer variants stay lossless", () => {
   assert.deepEqual(dom.getProperty(folder, "Value"), { Int64: large });
   assert.deepEqual(rbx.types.variant({ Int64: large }), { Int64: large });
 });
+
+test("live instance handles, builders, raw DOMs, and external operations are available", () => {
+  const source = rbx.createDom({
+    className: "DataModel",
+    children: [
+      {
+        className: "Folder",
+        name: "Source",
+        children: [{ className: "Part", name: "Block" }],
+      },
+    ],
+  });
+  const destination = rbx.createDom({
+    className: "DataModel",
+    children: [{ className: "Folder", name: "Destination" }],
+  });
+  const sourceFolder = source.children(source.rootRef)[0];
+  const sourcePart = source.children(sourceFolder)[0];
+  const destinationFolder = destination.children(destination.rootRef)[0];
+
+  const instance = source.instanceObject(sourcePart);
+  instance.setName("Renamed").setProperty("Anchored", true);
+  assert.equal(source.instance(sourcePart).name, "Renamed");
+  assert.deepEqual(instance.getProperty("Anchored"), { Bool: true });
+  assert.deepEqual(
+    source.ancestorsOf(sourcePart).map(({ name }) => name),
+    ["Renamed", "Source", "DataModel"],
+  );
+
+  const builder = new rbx.InstanceBuilder("Folder")
+    .setName("Built")
+    .setProperty("Value", 5);
+  source.insertBuilder(source.rootRef, builder);
+  assert.equal(source.instanceCount, 4);
+
+  const clone = source.cloneIntoExternal(sourceFolder, destination);
+  assert.equal(destination.instance(clone).name, "Source");
+  source.transfer(sourcePart, destination, destinationFolder);
+  assert.equal(source.instance(sourcePart), null);
+  assert.equal(destination.instance(sourcePart).parent, destinationFolder);
+
+  const raw = source.raw();
+  const restored = rbx.Dom.fromRaw(raw);
+  assert.deepEqual(restored.raw(), raw);
+  assert.equal(restored.instanceCount, source.instanceCount);
+  assert.equal(restored.rootMut().name(), "DataModel");
+});
+
+test("viewer, attributes, full shared-string access, and custom reflection work", () => {
+  const dom = rbx.createDom({ className: "DataModel" });
+  const viewer = new rbx.DomViewer();
+  assert.equal(viewer.view(dom).referent, "referent-0");
+
+  const attributes = new rbx.Attributes({ Enabled: true });
+  attributes.set("Count", 3);
+  assert.deepEqual(attributes.get("Count"), { Int32: 3 });
+  const decoded = rbx.Attributes.decode(attributes.encode());
+  assert.deepEqual(decoded.toJSON(), {
+    Count: { Int32: 3 },
+    Enabled: { Bool: true },
+  });
+
+  const shared = rbx.types.sharedString(Buffer.from("payload"));
+  assert.equal(rbx.types.sharedStringData(shared).toString(), "payload");
+  assert.equal(rbx.types.sharedStringHashBytes(shared).length, 32);
+  const net = rbx.types.netAssetRef(Buffer.from("asset"));
+  assert.equal(rbx.types.netAssetRefData(net).toString(), "asset");
+
+  const database = new rbx.ReflectionDatabase({
+    Version: [0, 0, 0, 0],
+    Classes: {},
+    Enums: {},
+  });
+  assert.deepEqual(database.version(), [0, 0, 0, 0]);
+  const xml = Buffer.from(
+    '<roblox version="4"><Item class="Folder" referent="0"/></roblox>',
+  );
+  assert.equal(
+    rbx.readXml(xml, {
+      propertyBehavior: "noReflection",
+      reflectionDatabase: database,
+    }).instanceCount,
+    2,
+  );
+  const binary = rbx.createDom({ className: "DataModel" }).toBinary({
+    reflectionDatabase: database,
+  });
+  assert.equal(
+    rbx.readBinary(binary, { reflectionDatabase: database }).instanceCount,
+    1,
+  );
+});

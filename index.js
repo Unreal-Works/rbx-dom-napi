@@ -24,13 +24,42 @@ export class Dom {
   }
 
   static fromXml(data, options) {
+    if (options?.reflectionDatabase instanceof ReflectionDatabase) {
+      const { reflectionDatabase, ...ioOptions } = options;
+      return Dom._fromNative(
+        native.readXmlWithDatabase(
+          data,
+          reflectionDatabase._native,
+          json(ioOptions),
+        ),
+      );
+    }
     return Dom._fromNative(
       native.readXml(data, options === undefined ? undefined : json(options)),
     );
   }
 
-  static fromBinary(data) {
-    return Dom._fromNative(native.readBinary(data));
+  static fromBinary(data, options) {
+    if (options?.reflectionDatabase instanceof ReflectionDatabase) {
+      const { reflectionDatabase, ...ioOptions } = options;
+      return Dom._fromNative(
+        native.readBinaryWithDatabase(
+          data,
+          reflectionDatabase._native,
+          json(ioOptions),
+        ),
+      );
+    }
+    return Dom._fromNative(
+      native.readBinary(
+        data,
+        options === undefined ? undefined : json(options),
+      ),
+    );
+  }
+
+  static fromRaw(value) {
+    return Dom._fromNative(native.Dom.fromRaw(json(value)));
   }
 
   get rootRef() {
@@ -39,6 +68,10 @@ export class Dom {
 
   get instanceCount() {
     return this._native.instanceCount();
+  }
+
+  root() {
+    return parse(this._native.root());
   }
 
   snapshot() {
@@ -54,6 +87,23 @@ export class Dom {
     return value === null ? null : parse(value);
   }
 
+  instanceObject(referent) {
+    const value = this._native.instanceObject(referent);
+    return value === null ? null : Instance._fromNative(value);
+  }
+
+  rootMut() {
+    return Instance._fromNative(this._native.rootMut());
+  }
+
+  raw() {
+    return parse(this._native.raw());
+  }
+
+  rawInstances() {
+    return parse(this._native.rawInstances());
+  }
+
   children(referent) {
     return this._native.children(referent);
   }
@@ -63,6 +113,10 @@ export class Dom {
     return parse(value);
   }
 
+  ancestorsOf(referent) {
+    return parse(this._native.ancestorsOf(referent));
+  }
+
   fullPath(referent, separator = ".") {
     return this._native.fullPath(referent, separator);
   }
@@ -70,6 +124,11 @@ export class Dom {
   getProperty(referent, property) {
     const value = this._native.getProperty(referent, property);
     return value === null ? undefined : parse(value);
+  }
+
+  uniqueId(referent) {
+    const value = this._native.uniqueId(referent);
+    return value === null ? undefined : value;
   }
 
   setProperty(referent, property, value) {
@@ -95,6 +154,16 @@ export class Dom {
     return this._native.insert(parent, json(spec));
   }
 
+  insertBuilder(parent, builder) {
+    this._native.insertBuilder(parent, builder._native);
+    return this;
+  }
+
+  reserve(additional) {
+    this._native.reserve(additional);
+    return this;
+  }
+
   destroy(referent) {
     this._native.destroy(referent);
     return this;
@@ -109,16 +178,300 @@ export class Dom {
     return this;
   }
 
+  transfer(referent, destination, parent) {
+    this._native.transfer(referent, destination._native, parent);
+    return this;
+  }
+
+  cloneIntoExternal(referent, destination) {
+    return this._native.cloneIntoExternal(referent, destination._native);
+  }
+
+  cloneMultipleIntoExternal(referents, destination) {
+    return this._native.cloneMultipleIntoExternal(
+      referents,
+      destination._native,
+    );
+  }
+
+  view() {
+    return parse(this._native.view());
+  }
+
   toXml(options) {
+    if (options?.reflectionDatabase instanceof ReflectionDatabase) {
+      const { reflectionDatabase, ...ioOptions } = options;
+      return this._native.toXmlWithDatabase(
+        reflectionDatabase._native,
+        json(ioOptions),
+      );
+    }
     return this._native.toXml(
       options === undefined ? undefined : json(options),
     );
   }
 
   toBinary(options) {
+    if (options?.reflectionDatabase instanceof ReflectionDatabase) {
+      const { reflectionDatabase, ...ioOptions } = options;
+      return this._native.toBinaryWithDatabase(
+        reflectionDatabase._native,
+        json(ioOptions),
+      );
+    }
     return this._native.toBinary(
       options === undefined ? undefined : json(options),
     );
+  }
+}
+
+export class Instance {
+  constructor() {
+    throw new TypeError("Instance objects are created by a Dom");
+  }
+
+  static _fromNative(value) {
+    const instance = Object.create(Instance.prototype);
+    instance._native = value;
+    return instance;
+  }
+
+  referent() {
+    return this._native.referent();
+  }
+
+  parent() {
+    return this._native.parent();
+  }
+
+  children() {
+    return this._native.children();
+  }
+
+  name() {
+    return this._native.name();
+  }
+
+  className() {
+    return this._native.className();
+  }
+
+  snapshot() {
+    return parse(this._native.snapshot());
+  }
+
+  properties() {
+    return parse(this._native.properties());
+  }
+
+  getProperty(property) {
+    const value = this._native.getProperty(property);
+    return value === null ? undefined : parse(value);
+  }
+
+  setProperty(property, value) {
+    this._native.setProperty(property, json(value));
+    return this;
+  }
+
+  removeProperty(property) {
+    return this._native.removeProperty(property);
+  }
+
+  setName(name) {
+    this._native.setName(name);
+    return this;
+  }
+
+  setClass(className) {
+    this._native.setClass(className);
+    return this;
+  }
+}
+
+export class InstanceBuilder {
+  constructor(className, propertyCapacity) {
+    this._native = new native.InstanceBuilder(className, propertyCapacity);
+  }
+
+  referent() {
+    return this._native.referent();
+  }
+
+  className() {
+    return this._native.className();
+  }
+
+  name() {
+    return this._native.name();
+  }
+
+  setClass(className) {
+    this._native.setClass(className);
+    return this;
+  }
+
+  setName(name) {
+    this._native.setName(name);
+    return this;
+  }
+
+  setReferent(referent) {
+    this._native.setReferent(referent);
+    return this;
+  }
+
+  hasProperty(property) {
+    return this._native.hasProperty(property);
+  }
+
+  getProperty(property) {
+    const value = this._native.getProperty(property);
+    return value === null ? undefined : parse(value);
+  }
+
+  setProperty(property, value) {
+    this._native.setProperty(property, json(value));
+    return this;
+  }
+
+  addProperty(property, value) {
+    this._native.addProperty(property, json(value));
+    return this;
+  }
+
+  addChild(child) {
+    this._native.addChild(child._native);
+    return this;
+  }
+}
+
+export class DomViewer {
+  constructor() {
+    this._native = new native.DomViewer();
+  }
+
+  view(dom) {
+    return parse(this._native.view(dom._native));
+  }
+
+  viewChildren(dom) {
+    return parse(this._native.viewChildren(dom._native));
+  }
+}
+
+export class Attributes {
+  constructor(value = undefined) {
+    this._native = new native.Attributes();
+    if (value !== undefined) {
+      for (const [key, entry] of Object.entries(value)) {
+        this.set(key, entry);
+      }
+    }
+  }
+
+  static decode(data) {
+    const value = Object.create(Attributes.prototype);
+    value._native = native.attributesDecode(data);
+    return value;
+  }
+
+  get(key) {
+    const value = this._native.get(key);
+    return value === null ? undefined : parse(value);
+  }
+
+  set(key, value) {
+    const previous = this._native.set(key, json(value));
+    return previous === null ? undefined : parse(previous);
+  }
+
+  remove(key) {
+    const value = this._native.remove(key);
+    return value === null ? undefined : parse(value);
+  }
+
+  clear() {
+    this._native.clear();
+    return this;
+  }
+
+  get length() {
+    return this._native.length();
+  }
+
+  get isEmpty() {
+    return this._native.isEmpty();
+  }
+
+  toJSON() {
+    return parse(this._native.toJson());
+  }
+
+  encode() {
+    return this._native.encode();
+  }
+}
+
+export class ReflectionDatabase {
+  constructor(value = undefined) {
+    this._native = new native.ReflectionDatabase(
+      value === undefined ? undefined : json(value),
+    );
+  }
+
+  static fromBinary(data) {
+    const value = Object.create(ReflectionDatabase.prototype);
+    value._native = native.reflectionDatabaseFromBinary(data);
+    return value;
+  }
+
+  version() {
+    return this._native.version();
+  }
+
+  classNames() {
+    return this._native.classNames();
+  }
+
+  enumNames() {
+    return this._native.enumNames();
+  }
+
+  toJSON() {
+    return parse(this._native.toJson());
+  }
+
+  class(name) {
+    return parse(this._native.class(name));
+  }
+
+  property(className, propertyName) {
+    return parse(this._native.property(className, propertyName));
+  }
+
+  defaultProperty(className, propertyName) {
+    return parse(this._native.defaultProperty(className, propertyName));
+  }
+
+  propertyNames(className) {
+    return this._native.propertyNames(className);
+  }
+
+  enum(name) {
+    return parse(this._native.enum(name));
+  }
+
+  enumItems(name) {
+    return parse(this._native.enumItems(name));
+  }
+
+  isA(className, superclassName) {
+    return this._native.isA(className, superclassName);
+  }
+
+  superclasses(className) {
+    return this._native.superclasses(className);
   }
 }
 
@@ -157,20 +510,33 @@ export const types = {
   colorSequence: (keypoints) => parse(native.colorSequence(json(keypoints))),
   font: valueFunction("font"),
   fontRegular: valueFunction("fontRegular"),
+  fontParts: (value) => parse(native.fontParts(json(value))),
   brickColorByName: valueFunction("brickColorByName"),
   brickColorByNumber: valueFunction("brickColorByNumber"),
+  brickColorToColor3uint8: (value) =>
+    parse(native.brickColorToColor3uint8(json(value))),
   enumValue: (value) => native.enumValue(value),
   enumItem: valueFunction("enumItem"),
   refFromString: (value) => native.refFromString(value),
   refNone: () => native.refNone(),
+  refNew: () => native.refNew(),
+  refIsSome: (value) => native.refIsSome(value),
+  refIsNone: (value) => native.refIsNone(value),
   uniqueIdNow: () => native.uniqueIdNow(),
   uniqueId: (index, time, random) =>
     native.uniqueId(index, time, String(random)),
   uniqueIdParts: (value) => parse(native.uniqueIdParts(value)),
   axesFromBits: (bits) => parse(native.axesFromBits(bits)),
   axesBits: (value) => native.axesBits(json(value)),
+  axesEmpty: () => parse(native.axesEmpty()),
+  axesAll: () => parse(native.axesAll()),
+  axesContains: (value, other) => native.axesContains(json(value), json(other)),
   facesFromBits: (bits) => parse(native.facesFromBits(bits)),
   facesBits: (value) => native.facesBits(json(value)),
+  facesEmpty: () => parse(native.facesEmpty()),
+  facesAll: () => parse(native.facesAll()),
+  facesContains: (value, other) =>
+    native.facesContains(json(value), json(other)),
   securityCapabilitiesBits: (bits) =>
     native.securityCapabilitiesBits(String(bits)),
   contentNone: valueFunction("contentNone"),
@@ -179,13 +545,40 @@ export const types = {
   contentId: valueFunction("contentId"),
   physicalProperties: valueFunction("physicalProperties"),
   binaryString: (data) => native.binaryString(data),
+  sharedString: (data) => parse(native.sharedString(data)),
+  sharedStringData: (value) => native.sharedStringData(json(value)),
+  sharedStringHashBytes: (value) => native.sharedStringHashBytes(json(value)),
   sharedStringHash: (data) => native.sharedStringHash(data),
+  netAssetRef: (data) => parse(native.netAssetRef(data)),
+  netAssetRefData: (value) => native.netAssetRefData(json(value)),
+  netAssetRefHashBytes: (value) => native.netAssetRefHashBytes(json(value)),
   netAssetRefHash: (data) => native.netAssetRefHash(data),
   tagsEncode: (tags) => native.tagsEncode(json(tags)),
   tagsDecode: (data) => parse(native.tagsDecode(data)),
   materialColorsDefault: valueFunction("materialColorsDefault"),
   materialColorsEncode: (value) => native.materialColorsEncode(json(value)),
   materialColorsDecode: (data) => parse(native.materialColorsDecode(data)),
+  materialColorsGet: (value, material) =>
+    parse(native.materialColorsGet(json(value), material)),
+  materialColorsSet: (value, material, color) =>
+    parse(native.materialColorsSet(json(value), material, json(color))),
+  materialColorsDefaultValue: valueFunction("materialColorsDefault"),
+  physicalPropertiesDefault: valueFunction("physicalPropertiesDefault"),
+  physicalPropertiesParts: (value) => {
+    const result = native.physicalPropertiesParts(json(value));
+    return result === null ? undefined : parse(result);
+  },
+  contentKind: (value) => native.contentKind(json(value)),
+  contentUriValue: (value) => native.contentUriValue(json(value)),
+  contentObjectValue: (value) => native.contentObjectValue(json(value)),
+  contentIdValue: (value) => native.contentIdValue(json(value)),
+  matrixTranspose: (value) => parse(native.matrixTranspose(json(value))),
+  matrixBasicRotationId: (value) => native.matrixBasicRotationId(json(value)),
+  matrixFromBasicRotationId: (id) =>
+    parse(native.matrixFromBasicRotationId(id)),
+  tagsLength: (data) => native.tagsLength(data),
+  tagsIsEmpty: (data) => native.tagsIsEmpty(data),
+  uniqueIdNil: () => native.uniqueIdNil(),
   variant: (value) => parse(native.variant(json(value))),
   variantType: (value) => native.variantType(json(value)),
   taggedVariant: (type, value) => types.variant({ [type]: value }),

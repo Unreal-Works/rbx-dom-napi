@@ -18,6 +18,7 @@ rbx_reflection = { path = "../upstream/rbx-dom/rbx_reflection" }
 rbx_reflection_database = { path = "../upstream/rbx-dom/rbx_reflection_database", features = ["debug_always_use_bundled"] }
 rbx_types = { path = "../upstream/rbx-dom/rbx_types", features = ["serde"] }
 rbx_xml = { path = "../upstream/rbx-dom/rbx_xml" }
+rmp-serde = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 

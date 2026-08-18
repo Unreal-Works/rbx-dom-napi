@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use std::io::Cursor;
+use std::sync::{Arc, Mutex};
 
 use napi::bindgen_prelude::Buffer;
 use napi::Result;
@@ -37,34 +38,40 @@ pub fn remove_property(
         ..IoOptions::default()
     };
     let format = format.to_ascii_lowercase();
-    let mut dom = Dom {
+    let dom = Dom {
         inner: match format.as_str() {
-            "xml" | "rbxmx" | "rbxlx" => decode_xml_bytes(data.to_vec(), &decode_options)?,
-            "binary" | "rbxm" | "rbxl" => decode_binary_bytes(data.to_vec())?,
+            "xml" | "rbxmx" | "rbxlx" => Arc::new(Mutex::new(decode_xml_bytes(
+                data.to_vec(),
+                &decode_options,
+            )?)),
+            "binary" | "rbxm" | "rbxl" => Arc::new(Mutex::new(decode_binary_bytes(
+                data.to_vec(),
+                &decode_options,
+            )?)),
             _ => return Err(invalid_arg(format!("unknown input format {format:?}"))),
         },
     };
 
-    let targets: Vec<_> = dom
+    let mut inner = dom
         .inner
+        .lock()
+        .map_err(|_| crate::error::failure("DOM lock is poisoned"))?;
+    let targets: Vec<_> = inner
         .descendants()
         .filter(|instance| instance.class == class_name.as_str())
         .map(|instance| instance.referent())
         .collect();
     for referent in targets {
-        if let Some(instance) = dom.inner.get_by_ref_mut(referent) {
+        if let Some(instance) = inner.get_by_ref_mut(referent) {
             instance.properties.remove(&ustr(&property_name));
         }
     }
 
     match format.as_str() {
-        "xml" | "rbxmx" | "rbxlx" => {
-            Ok(Buffer::from(encode_xml_bytes(&dom.inner, &encode_options)?))
+        "xml" | "rbxmx" | "rbxlx" => Ok(Buffer::from(encode_xml_bytes(&inner, &encode_options)?)),
+        "binary" | "rbxm" | "rbxl" => {
+            Ok(Buffer::from(encode_binary_bytes(&inner, &encode_options)?))
         }
-        "binary" | "rbxm" | "rbxl" => Ok(Buffer::from(encode_binary_bytes(
-            &dom.inner,
-            &encode_options,
-        )?)),
         _ => Err(invalid_arg(format!("unknown input format {format:?}"))),
     }
 }
