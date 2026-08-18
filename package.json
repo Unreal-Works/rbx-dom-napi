@@ -19,8 +19,8 @@
     "lint": "cargo clippy --workspace --all-targets -- -D warnings",
     "build": "napi build --platform --release --no-js --dts native/index.d.ts --manifest-path native/Cargo.toml --output-dir .",
     "build:debug": "napi build --platform --no-js --dts native/index.d.ts --manifest-path native/Cargo.toml --output-dir .",
-    "artifacts": "napi artifacts --output-dir artifacts --npm-dir npm",
-    "prepublishOnly": "napi prepublish -t npm --no-gh-release --npm-dir npm",
+    "artifacts": "napi artifacts --output-dir artifacts",
+    "prepublishOnly": "napi prepublish -t npm",
     "test": "node --test test/**/*.test.js",
     "test:cargo": "cargo test --workspace",
     "test:examples": "npm run build:debug && node scripts/test-examples.js"
