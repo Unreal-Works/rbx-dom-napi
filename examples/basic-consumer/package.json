@@ -1,0 +1,12 @@
+{
+  "name": "rbx-dom-basic-consumer",
+  "private": true,
+  "type": "commonjs",
+  "allowScripts": {},
+  "scripts": {
+    "test": "node --test consumer.test.js"
+  },
+  "dependencies": {
+    "rbx-dom": "file:../.."
+  }
+}
