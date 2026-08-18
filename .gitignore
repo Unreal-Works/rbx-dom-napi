@@ -1,0 +1,10 @@
+/target/
+/node_modules/
+/*.node
+/artifacts/
+/npm/
+/native/*.node
+/native/index.js
+/native/index.d.ts
+/examples/*/node_modules/
+*.tgz

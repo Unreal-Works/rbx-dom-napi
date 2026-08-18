@@ -1,0 +1,8 @@
+[workspace]
+members = ["native"]
+exclude = ["upstream/rbx-dom"]
+resolver = "2"
+
+[profile.release]
+lto = true
+strip = "symbols"

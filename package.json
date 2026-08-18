@@ -1,0 +1,50 @@
+{
+  "name": "rbx-dom",
+  "version": "0.1.0",
+  "description": "Node.js bindings for the rbx-dom Roblox DOM libraries",
+  "license": "MIT",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "README.md",
+    "*.node"
+  ],
+  "engines": {
+    "node": ">=20.17"
+  },
+  "scripts": {
+    "build": "napi build --platform --release --no-js --dts native/index.d.ts --manifest-path native/Cargo.toml --output-dir .",
+    "build:debug": "napi build --platform --no-js --dts native/index.d.ts --manifest-path native/Cargo.toml --output-dir .",
+    "artifacts": "napi artifacts --output-dir artifacts --npm-dir npm",
+    "prepublishOnly": "napi prepublish -t npm --no-gh-release --npm-dir npm",
+    "test": "node --test test/**/*.test.js",
+    "test:examples": "npm run build:debug && node scripts/test-examples.js"
+  },
+  "napi": {
+    "binaryName": "rbx-dom",
+    "packageName": "rbx-dom",
+    "targets": [
+      "x86_64-unknown-linux-gnu",
+      "aarch64-unknown-linux-gnu",
+      "x86_64-unknown-linux-musl",
+      "aarch64-unknown-linux-musl",
+      "x86_64-pc-windows-msvc",
+      "aarch64-pc-windows-msvc",
+      "x86_64-apple-darwin",
+      "aarch64-apple-darwin"
+    ]
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rojo-rbx/rbx-dom-napi.git"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^3.8.6"
+  }
+}
