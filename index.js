@@ -1,6 +1,7 @@
 "use strict";
 
-export const native = require("./native");
+import * as native from "./native/index.js";
+export * as native from "./native/index.js";
 
 function json(value) {
   return JSON.stringify(value);
@@ -10,7 +11,7 @@ function parse(value) {
   return JSON.parse(value);
 }
 
-class Dom {
+export class Dom {
   constructor(spec = { className: "DataModel" }) {
     this._native =
       spec instanceof native.Dom ? spec : new native.Dom(json(spec));
@@ -130,7 +131,7 @@ const valueWithJson =
   (value, ...args) =>
     parse(native[name](json(value), ...args));
 
-const types = {
+export const types = {
   vector2: valueFunction("vector2"),
   vector2int16: valueFunction("vector2int16"),
   vector3: valueFunction("vector3"),
@@ -190,7 +191,7 @@ const types = {
   taggedVariant: (type, value) => types.variant({ [type]: value }),
 };
 
-const reflection = {
+export const reflection = {
   version: () => native.reflectionVersion(),
   classNames: () => native.reflectionClassNames(),
   enumNames: () => native.reflectionEnumNames(),
@@ -209,24 +210,28 @@ const reflection = {
   localDatabasePath: () => native.reflectionLocalDatabasePath(),
 };
 
-const api = {
-  Dom,
-  createDom: (spec) => new Dom(spec),
-  readXml: Dom.fromXml,
-  readBinary: Dom.fromBinary,
-  convertFile: (data, fromFormat, toFormat, options) =>
-    native.convertFile(
-      data,
-      fromFormat,
-      toFormat,
-      options === undefined ? undefined : json(options),
-    ),
-  viewBinary: (data) => parse(native.viewBinary(data)),
-  removeProperty: (data, format, className, propertyName) =>
-    native.removeProperty(data, format, className, propertyName),
-  types,
-  reflection,
-  metadata: () => parse(native.bindingMetadata()),
-};
+export function createDom(spec) {
+  return new Dom(spec);
+}
 
-module.exports = api;
+export const readXml = Dom.fromXml;
+export const readBinary = Dom.fromBinary;
+
+export function convertFile(data, fromFormat, toFormat, options) {
+  return native.convertFile(
+    data,
+    fromFormat,
+    toFormat,
+    options === undefined ? undefined : json(options),
+  );
+}
+
+export function viewBinary(data) {
+  return parse(native.viewBinary(data));
+}
+
+export const removeProperty = native.removeProperty;
+
+export function metadata() {
+  return parse(native.bindingMetadata());
+}

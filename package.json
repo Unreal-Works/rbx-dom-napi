@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Node.js bindings for the rbx-dom Roblox DOM libraries",
   "license": "MIT",
+  "type": "module",
   "main": "index.js",
   "types": "index.d.ts",
   "files": [
@@ -17,8 +18,8 @@
   "scripts": {
     "format": "cargo fmt --all",
     "lint": "cargo clippy --workspace --all-targets -- -D warnings",
-    "build": "napi build --platform --release --dts index.d.ts --manifest-path native/Cargo.toml --output-dir native",
-    "build:debug": "napi build --platform --dts index.d.ts --manifest-path native/Cargo.toml --output-dir native",
+    "build": "napi build --platform --release --esm --dts index.d.ts --manifest-path native/Cargo.toml --output-dir native",
+    "build:debug": "napi build --platform --esm --dts index.d.ts --manifest-path native/Cargo.toml --output-dir native",
     "artifacts": "napi artifacts --output-dir artifacts",
     "prepublishOnly": "napi prepublish -t npm",
     "test": "node --test test/**/*.test.js",

@@ -1,7 +1,6 @@
-const assert = require("node:assert/strict");
-const test = require("node:test");
-
-const rbx = require("..");
+import assert from "node:assert/strict";
+import test from "node:test";
+import * as rbx from "../index.js";
 
 test("typed values retain upstream rbx_types representations", () => {
   const vector = rbx.types.vector3(1, 2, 3);
