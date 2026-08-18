@@ -83,5 +83,4 @@ jobs:
 
       - run: npm run build:debug
       - run: npm run artifacts
-      - run: npx napi prepublish --tag-style npm --npm-dir npm --no-gh-release
       - run: npm publish --access public
