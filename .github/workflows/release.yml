@@ -1,0 +1,87 @@
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            runner: ubuntu-latest
+            flags: ""
+          - target: aarch64-unknown-linux-gnu
+            runner: ubuntu-24.04-arm
+            flags: ""
+          - target: x86_64-unknown-linux-musl
+            runner: ubuntu-latest
+            flags: "--cross-compile"
+          - target: aarch64-unknown-linux-musl
+            runner: ubuntu-24.04-arm
+            flags: "--cross-compile"
+          - target: x86_64-pc-windows-msvc
+            runner: windows-latest
+            flags: ""
+          - target: aarch64-pc-windows-msvc
+            runner: windows-11-arm
+            flags: ""
+          - target: x86_64-apple-darwin
+            runner: macos-15-intel
+            flags: ""
+          - target: aarch64-apple-darwin
+            runner: macos-latest
+            flags: ""
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+      - name: Install Zig for musl builds
+        if: contains(matrix.target, 'musl')
+        run: |
+          sudo snap install zig --classic --beta
+          zig version
+      - name: Build native addon
+        run: npm run build --output-dir artifacts --target ${{ matrix.target }} ${{ matrix.flags }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: native-${{ matrix.target }}
+          path: artifacts/*.node
+          if-no-files-found: error
+
+  publish:
+    name: Publish
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+      - uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - run: npm run build:debug
+      - run: npm run artifacts
+      - run: npx napi prepublish --tag-style npm --npm-dir npm --no-gh-release
+      - run: npm publish --access public
