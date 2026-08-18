@@ -29,7 +29,7 @@
   },
   "napi": {
     "binaryName": "rbx-dom",
-    "packageName": "rbx-dom",
+    "packageName": "@unrealworks/rbx-dom",
     "targets": [
       "x86_64-unknown-linux-gnu",
       "aarch64-unknown-linux-gnu",
@@ -46,14 +46,14 @@
     "registry": "https://registry.npmjs.org/"
   },
   "optionalDependencies": {
-    "@unrealworks/rbx-dom-darwin-arm64": "0.0.0",
-    "@unrealworks/rbx-dom-darwin-x64": "0.0.0",
-    "@unrealworks/rbx-dom-linux-arm64-gnu": "0.0.0",
-    "@unrealworks/rbx-dom-linux-arm64-musl": "0.0.0",
     "@unrealworks/rbx-dom-linux-x64-gnu": "0.0.0",
+    "@unrealworks/rbx-dom-linux-arm64-gnu": "0.0.0",
     "@unrealworks/rbx-dom-linux-x64-musl": "0.0.0",
+    "@unrealworks/rbx-dom-linux-arm64-musl": "0.0.0",
+    "@unrealworks/rbx-dom-win32-x64-msvc": "0.0.0",
     "@unrealworks/rbx-dom-win32-arm64-msvc": "0.0.0",
-    "@unrealworks/rbx-dom-win32-x64-msvc": "0.0.0"
+    "@unrealworks/rbx-dom-darwin-x64": "0.0.0",
+    "@unrealworks/rbx-dom-darwin-arm64": "0.0.0"
   },
   "repository": {
     "type": "git",
