@@ -1,7 +1,6 @@
-const assert = require("node:assert/strict");
-const test = require("node:test");
-
-const { createDom, types } = require("rbx-dom");
+import assert from "node:assert/strict";
+import test from "node:test";
+import { createDom, types } from "rbx-dom";
 
 test("a consumer can build and query a Roblox DOM", () => {
   const dom = createDom({

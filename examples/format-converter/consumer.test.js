@@ -1,7 +1,6 @@
-const assert = require("node:assert/strict");
-const test = require("node:test");
-
-const { createDom, convertFile, readBinary, readXml } = require("rbx-dom");
+import assert from "node:assert/strict";
+import test from "node:test";
+import { convertFile, createDom, readBinary, readXml } from "rbx-dom";
 
 test("a consumer can convert XML to binary and back", () => {
   const source = createDom({

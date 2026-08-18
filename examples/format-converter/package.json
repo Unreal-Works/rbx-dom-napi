@@ -1,7 +1,7 @@
 {
   "name": "rbx-dom-format-converter-consumer",
   "private": true,
-  "type": "commonjs",
+  "type": "module",
   "allowScripts": {},
   "scripts": {
     "test": "node --test consumer.test.js"
