@@ -537,9 +537,9 @@ fn dom_from_raw_json(raw_json: &str) -> Result<WeakDom> {
         raw_instance_builder(&raw.root_ref, &raw.instances, &mut HashSet::new())?;
     ensure_unique_refs(&referents)?;
     if referents.len() != raw.instances.len() {
-        return Err(invalid_arg(format!(
-            "raw DOM contains instances that are not descendants of rootRef"
-        )));
+        return Err(invalid_arg(
+            "raw DOM contains instances that are not descendants of rootRef",
+        ));
     }
     Ok(WeakDom::new(builder))
 }
