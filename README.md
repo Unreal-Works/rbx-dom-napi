@@ -40,6 +40,7 @@ We retain the mapping from generated internal referents:
 
 ```js
 const dom = readXml(xml);
+const version = dom.xmlVersion(); // "4"
 const internalReferent = dom.children(dom.rootRef)[0];
 const authoredReferent = dom.sourceReferents()[internalReferent];
 ```

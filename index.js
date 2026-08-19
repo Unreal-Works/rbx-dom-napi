@@ -74,6 +74,11 @@ export class Dom {
     return parse(this._native.sourceReferents());
   }
 
+  xmlVersion() {
+    const value = this._native.xmlVersion();
+    return value === null ? undefined : value;
+  }
+
   root() {
     return parse(this._native.root());
   }

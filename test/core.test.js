@@ -157,7 +157,7 @@ test("camelCase options and large integer variants stay lossless", () => {
   assert.deepEqual(rbx.types.variant({ Int64: large }), { Int64: large });
 });
 
-test("XML reads expose internal-to-authored source referents", () => {
+test("XML reads expose source metadata", () => {
   const xml = Buffer.from(`
     <roblox version="4" xmlns:source="urn:source">
       <External><Item class="Folder" referent="Ignored" /></External>
@@ -178,8 +178,12 @@ test("XML reads expose internal-to-authored source referents", () => {
     [sibling]: "AuthoredSibling",
     [top]: "AuthoredTop",
   });
+  assert.equal(dom.xmlVersion(), "4");
   assert.equal(dom.sourceReferents()[withoutReferent], undefined);
-  assert.deepEqual(rbx.readBinary(dom.toBinary()).sourceReferents(), {});
+  const binaryDom = rbx.readBinary(dom.toBinary());
+  assert.deepEqual(binaryDom.sourceReferents(), {});
+  assert.equal(binaryDom.xmlVersion(), undefined);
+  assert.equal(rbx.createDom().xmlVersion(), undefined);
 });
 
 test("live instance handles, builders, raw DOMs, and external operations are available", () => {
@@ -258,13 +262,12 @@ test("viewer, attributes, full shared-string access, and custom reflection work"
   const xml = Buffer.from(
     '<roblox version="4"><Item class="Folder" referent="0"/></roblox>',
   );
-  assert.equal(
-    rbx.readXml(xml, {
-      propertyBehavior: "noReflection",
-      reflectionDatabase: database,
-    }).instanceCount,
-    2,
-  );
+  const customXmlDom = rbx.readXml(xml, {
+    propertyBehavior: "noReflection",
+    reflectionDatabase: database,
+  });
+  assert.equal(customXmlDom.instanceCount, 2);
+  assert.equal(customXmlDom.xmlVersion(), "4");
   const binary = rbx.createDom({ className: "DataModel" }).toBinary({
     reflectionDatabase: database,
   });

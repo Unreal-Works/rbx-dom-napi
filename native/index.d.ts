@@ -18,6 +18,7 @@ export declare class Dom {
   snapshot(): string
   rootRef(): string
   sourceReferents(): string
+  xmlVersion(): string | null
   root(): string
   rootMut(): Instance
   instance(referent: string): string | null

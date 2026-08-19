@@ -74,6 +74,7 @@ struct RawDom {
 
 pub(crate) struct DecodedXml {
     pub(crate) dom: WeakDom,
+    pub(crate) version: String,
     pub(crate) source_referents: BTreeMap<String, String>,
 }
 
@@ -401,10 +402,11 @@ fn validate_transfer(dom: &WeakDom, referent: Ref, parent: Ref) -> Result<()> {
     Ok(())
 }
 
-fn collect_source_referents(data: &[u8], dom: &WeakDom) -> Result<BTreeMap<String, String>> {
+fn collect_xml_metadata(data: &[u8], dom: &WeakDom) -> Result<(String, BTreeMap<String, String>)> {
     let reader = ParserConfig::new()
         .ignore_comments(true)
         .create_reader(Cursor::new(data));
+    let mut version = None;
     let mut items = Vec::new();
     let mut stack: Vec<SourceItemPosition> = Vec::new();
     let mut elements: Vec<SourceElement> = Vec::new();
@@ -415,6 +417,15 @@ fn collect_source_referents(data: &[u8], dom: &WeakDom) -> Result<BTreeMap<Strin
             XmlEvent::StartElement {
                 name, attributes, ..
             } => {
+                let is_root = elements.is_empty() && name.local_name == "roblox";
+                if is_root {
+                    version = attributes
+                        .iter()
+                        .filter(|attribute| attribute.name.local_name == "version")
+                        .map(|attribute| attribute.value.clone())
+                        .next_back();
+                }
+
                 let is_item = name.local_name == "Item"
                     && elements.last().is_some_and(|element| element.allows_items);
 
@@ -447,7 +458,6 @@ fn collect_source_referents(data: &[u8], dom: &WeakDom) -> Result<BTreeMap<Strin
                     });
                 }
 
-                let is_root = elements.is_empty() && name.local_name == "roblox";
                 elements.push(SourceElement {
                     is_root,
                     is_item,
@@ -468,7 +478,7 @@ fn collect_source_referents(data: &[u8], dom: &WeakDom) -> Result<BTreeMap<Strin
         }
     }
 
-    items
+    let source_referents = items
         .into_iter()
         .map(|item| {
             let mut instance = dom.root();
@@ -482,7 +492,11 @@ fn collect_source_referents(data: &[u8], dom: &WeakDom) -> Result<BTreeMap<Strin
             }
             Ok((ref_string(instance.referent()), item.referent))
         })
-        .collect()
+        .collect::<Result<_>>()?;
+    let version = version
+        .ok_or_else(|| crate::error::failure("decoded XML is missing its source version"))?;
+
+    Ok((version, source_referents))
 }
 
 pub(crate) fn decode_xml_bytes(data: Vec<u8>, options: &IoOptions) -> Result<DecodedXml> {
@@ -511,9 +525,10 @@ fn decode_xml_with_database(
     }
     let dom = rbx_xml::from_reader(Cursor::new(data.as_slice()), decoder)
         .map_err(|error| upstream_error("rbx_xml::from_reader", error))?;
-    let source_referents = collect_source_referents(&data, &dom)?;
+    let (version, source_referents) = collect_xml_metadata(&data, &dom)?;
     Ok(DecodedXml {
         dom,
+        version,
         source_referents,
     })
 }
@@ -1008,6 +1023,7 @@ impl DomViewer {
 #[napi]
 pub struct Dom {
     pub(crate) inner: Arc<Mutex<WeakDom>>,
+    pub(crate) xml_version: Option<String>,
     pub(crate) source_referents: BTreeMap<String, String>,
 }
 
@@ -1018,6 +1034,7 @@ impl Dom {
         catch_panic("WeakDom::new", || {
             Ok(Self {
                 inner: Arc::new(Mutex::new(dom_from_spec_json(&spec_json)?)),
+                xml_version: None,
                 source_referents: BTreeMap::new(),
             })
         })
@@ -1028,6 +1045,7 @@ impl Dom {
         catch_panic("WeakDom::from_raw", || {
             Ok(Self {
                 inner: Arc::new(Mutex::new(dom_from_raw_json(&raw_json)?)),
+                xml_version: None,
                 source_referents: BTreeMap::new(),
             })
         })
@@ -1048,6 +1066,11 @@ impl Dom {
     pub fn source_referents(&self) -> Result<String> {
         serde_json::to_string(&self.source_referents)
             .map_err(|error| upstream_error("serializing source referents", error))
+    }
+
+    #[napi(js_name = "xmlVersion")]
+    pub fn xml_version(&self) -> Option<String> {
+        self.xml_version.clone()
     }
 
     #[napi(js_name = "root")]
@@ -1460,6 +1483,7 @@ pub fn read_xml(data: Buffer, options_json: Option<String>) -> Result<Dom> {
     let decoded = decode_xml_bytes(data.to_vec(), &options)?;
     Ok(Dom {
         inner: Arc::new(Mutex::new(decoded.dom)),
+        xml_version: Some(decoded.version),
         source_referents: decoded.source_referents,
     })
 }
@@ -1475,6 +1499,7 @@ pub fn read_xml_with_database(
     let decoded = decode_xml_with_database(data.to_vec(), &options, &database)?;
     Ok(Dom {
         inner: Arc::new(Mutex::new(decoded.dom)),
+        xml_version: Some(decoded.version),
         source_referents: decoded.source_referents,
     })
 }
@@ -1484,6 +1509,7 @@ pub fn read_binary(data: Buffer, options_json: Option<String>) -> Result<Dom> {
     let options = parse_io_options(options_json.as_deref())?;
     Ok(Dom {
         inner: Arc::new(Mutex::new(decode_binary_bytes(data.to_vec(), &options)?)),
+        xml_version: None,
         source_referents: BTreeMap::new(),
     })
 }
@@ -1501,6 +1527,7 @@ pub fn read_binary_with_database(
             data.to_vec(),
             &database,
         )?)),
+        xml_version: None,
         source_referents: BTreeMap::new(),
     })
 }

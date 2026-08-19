@@ -63,6 +63,7 @@ pub fn remove_property(
             )?)),
             _ => return Err(invalid_arg(format!("unknown input format {format:?}"))),
         },
+        xml_version: None,
         source_referents: BTreeMap::new(),
     };
 

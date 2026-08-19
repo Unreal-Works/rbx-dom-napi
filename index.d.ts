@@ -50,6 +50,7 @@ export class Dom {
   readonly rootRef: string;
   readonly instanceCount: number;
   sourceReferents(): Record<string, string>;
+  xmlVersion(): string | undefined;
   root(): InstanceView;
   rootMut(): Instance;
   snapshot(): DomSnapshot;
