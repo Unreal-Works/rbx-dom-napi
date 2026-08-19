@@ -50,6 +50,9 @@ jobs:
           cache: npm
 
       - run: npm ci
+      - name: Install Rust target for musl builds
+        if: contains(matrix.target, 'musl')
+        run: rustup target add ${{ matrix.target }}
       - name: Install Zig for musl builds
         if: contains(matrix.target, 'musl')
         run: |
