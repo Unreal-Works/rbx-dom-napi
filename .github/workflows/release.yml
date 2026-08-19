@@ -56,7 +56,7 @@ jobs:
           sudo snap install zig --classic --beta
           zig version
       - name: Build native addon
-        run: npm run build --output-dir artifacts --target ${{ matrix.target }} ${{ matrix.flags }}
+        run: npm run build -- --output-dir artifacts --target ${{ matrix.target }} ${{ matrix.flags }}
       - uses: actions/upload-artifact@v7
         with:
           name: native-${{ matrix.target }}
