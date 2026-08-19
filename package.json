@@ -1,6 +1,6 @@
 {
   "name": "rbx-dom",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Node.js bindings for the rbx-dom Roblox DOM libraries",
   "license": "MIT",
   "type": "module",
@@ -46,14 +46,14 @@
     "registry": "https://registry.npmjs.org/"
   },
   "optionalDependencies": {
-    "@unrealworks/rbx-dom-linux-x64-gnu": "0.0.0",
-    "@unrealworks/rbx-dom-linux-arm64-gnu": "0.0.0",
-    "@unrealworks/rbx-dom-linux-x64-musl": "0.0.0",
-    "@unrealworks/rbx-dom-linux-arm64-musl": "0.0.0",
-    "@unrealworks/rbx-dom-win32-x64-msvc": "0.0.0",
-    "@unrealworks/rbx-dom-win32-arm64-msvc": "0.0.0",
-    "@unrealworks/rbx-dom-darwin-x64": "0.0.0",
-    "@unrealworks/rbx-dom-darwin-arm64": "0.0.0"
+    "@unrealworks/rbx-dom-linux-x64-gnu": "0.1.0",
+    "@unrealworks/rbx-dom-linux-arm64-gnu": "0.1.0",
+    "@unrealworks/rbx-dom-linux-x64-musl": "0.1.0",
+    "@unrealworks/rbx-dom-linux-arm64-musl": "0.1.0",
+    "@unrealworks/rbx-dom-win32-x64-msvc": "0.1.0",
+    "@unrealworks/rbx-dom-win32-arm64-msvc": "0.1.0",
+    "@unrealworks/rbx-dom-darwin-x64": "0.1.0",
+    "@unrealworks/rbx-dom-darwin-arm64": "0.1.0"
   },
   "repository": {
     "type": "git",
