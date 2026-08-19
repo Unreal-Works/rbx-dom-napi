@@ -86,6 +86,5 @@ jobs:
           path: artifacts
           merge-multiple: true
 
-      - run: npm run build:debug
       - run: npm run artifacts
       - run: npm publish --access public
