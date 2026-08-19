@@ -57,7 +57,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/rojo-rbx/rbx-dom-napi.git"
+    "url": "git+https://github.com/Unreal-Works/rbx-dom-napi.git"
   },
   "devDependencies": {
     "@napi-rs/cli": "^3.8.6"
