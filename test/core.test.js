@@ -75,6 +75,20 @@ test("bundled reflection database and utility bindings are available", () => {
   const strippedDom = rbx.readXml(stripped);
   const strippedPart = strippedDom.children(strippedDom.rootRef)[0];
   assert.equal(strippedDom.getProperty(strippedPart, "Anchored"), undefined);
+  const strippedBinary = rbx.removeProperty(
+    dom.toXml(),
+    "xml",
+    "Part",
+    "Anchored",
+    "binary",
+  );
+  const strippedBinaryDom = rbx.readBinary(strippedBinary);
+  const strippedBinaryPart = strippedBinaryDom.children(strippedBinaryDom.rootRef)[0];
+  assert.equal(
+    strippedBinaryDom.getProperty(strippedBinaryPart, "Anchored"),
+    undefined,
+  );
+  assert.match(rbx.viewBinaryText(converted), /chunks:/);
 });
 
 test("DOM validation prevents upstream invariant-breaking operations", () => {
@@ -233,4 +247,28 @@ test("viewer, attributes, full shared-string access, and custom reflection work"
     rbx.readBinary(binary, { reflectionDatabase: database }).instanceCount,
     1,
   );
+});
+
+test("reflection databases can be generated from an API dump", () => {
+  const database = rbx.ReflectionDatabase.fromApiDump({
+    Classes: [
+      {
+        Name: "Folder",
+        Superclass: "Instance",
+        Members: [
+          {
+            MemberType: "Property",
+            Name: "Enabled",
+            ValueType: { Name: "bool", Category: "Primitive" },
+            Serialization: { CanSave: true, CanLoad: true },
+            Security: { Read: "None", Write: "None" },
+          },
+        ],
+      },
+    ],
+    Enums: [],
+  });
+  assert.deepEqual(database.version(), [0, 0, 0, 0]);
+  assert.deepEqual(database.propertyNames("Folder"), ["Enabled"]);
+  assert.equal(database.property("Folder", "Enabled").DataType.Value, "Bool");
 });

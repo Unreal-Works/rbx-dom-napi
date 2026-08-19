@@ -238,12 +238,16 @@ fn instance_view(instance: &rbx_dom_weak::Instance) -> Result<InstanceView> {
 }
 
 fn snapshot_value(dom: &WeakDom) -> Result<DomSnapshot> {
+    let instances = if dom.root_ref().is_none() {
+        Vec::new()
+    } else {
+        dom.descendants()
+            .map(instance_view)
+            .collect::<Result<Vec<_>>>()?
+    };
     Ok(DomSnapshot {
         root_ref: ref_string(dom.root_ref()),
-        instances: dom
-            .descendants()
-            .map(instance_view)
-            .collect::<Result<Vec<_>>>()?,
+        instances,
     })
 }
 
@@ -307,6 +311,9 @@ fn parse_compression(value: Option<&str>) -> Result<CompressionType> {
 }
 
 fn refs_for(dom: &WeakDom, options: &IoOptions) -> Result<Vec<Ref>> {
+    if dom.root_ref().is_none() {
+        return Err(invalid_arg("cannot serialize an empty DOM"));
+    }
     if let Some(refs) = &options.refs {
         return refs.iter().map(|value| parse_ref(value)).collect();
     }
@@ -530,9 +537,9 @@ fn dom_from_raw_json(raw_json: &str) -> Result<WeakDom> {
         raw_instance_builder(&raw.root_ref, &raw.instances, &mut HashSet::new())?;
     ensure_unique_refs(&referents)?;
     if referents.len() != raw.instances.len() {
-        return Err(invalid_arg(
-            "raw DOM contains instances that are not descendants of rootRef",
-        ));
+        return Err(invalid_arg(format!(
+            "raw DOM contains instances that are not descendants of rootRef"
+        )));
     }
     Ok(WeakDom::new(builder))
 }
@@ -869,6 +876,9 @@ impl DomViewer {
     #[napi(js_name = "view")]
     pub fn view(&mut self, dom: &Dom) -> Result<String> {
         let dom = lock_dom(&dom.inner)?;
+        if dom.root_ref().is_none() {
+            return Err(invalid_arg("empty DOM has no view"));
+        }
         serde_json::to_string(&self.inner.view(&dom))
             .map_err(|error| upstream_error("serializing DOM view", error))
     }
@@ -876,6 +886,9 @@ impl DomViewer {
     #[napi(js_name = "viewChildren")]
     pub fn view_children(&mut self, dom: &Dom) -> Result<String> {
         let dom = lock_dom(&dom.inner)?;
+        if dom.root_ref().is_none() {
+            return Err(invalid_arg("empty DOM has no view"));
+        }
         serde_json::to_string(&self.inner.view_children(&dom))
             .map_err(|error| upstream_error("serializing DOM children view", error))
     }
@@ -899,8 +912,10 @@ impl Dom {
 
     #[napi(js_name = "fromRaw")]
     pub fn from_raw(raw_json: String) -> Result<Self> {
-        Ok(Self {
-            inner: Arc::new(Mutex::new(dom_from_raw_json(&raw_json)?)),
+        catch_panic("WeakDom::from_raw", || {
+            Ok(Self {
+                inner: Arc::new(Mutex::new(dom_from_raw_json(&raw_json)?)),
+            })
         })
     }
 
@@ -918,6 +933,9 @@ impl Dom {
     #[napi(js_name = "root")]
     pub fn root(&self) -> Result<String> {
         let dom = lock_dom(&self.inner)?;
+        if dom.root_ref().is_none() {
+            return Err(invalid_arg("empty DOM has no root instance"));
+        }
         serde_json::to_string(&instance_view(dom.root())?)
             .map_err(|error| upstream_error("serializing root instance", error))
     }
@@ -925,7 +943,7 @@ impl Dom {
     #[napi(js_name = "rootMut")]
     pub fn root_mut(&self) -> Result<Instance> {
         let dom = lock_dom(&self.inner)?;
-        if dom.root().referent().is_none() {
+        if dom.root_ref().is_none() {
             return Err(invalid_arg("DOM root has an empty referent"));
         }
         Ok(Instance {
@@ -991,6 +1009,8 @@ impl Dom {
                     .map(instance_view)
                     .collect::<Result<Vec<_>>>()
             })?
+        } else if dom.root_ref().is_none() {
+            Vec::new()
         } else {
             dom.descendants()
                 .map(instance_view)
@@ -1243,8 +1263,13 @@ impl Dom {
     pub fn view(&self) -> Result<String> {
         let mut viewer = UpstreamDomViewer::new();
         let dom = lock_dom(&self.inner)?;
-        serde_json::to_string(&viewer.view(&dom))
-            .map_err(|error| upstream_error("serializing DOM view", error))
+        if dom.root_ref().is_none() {
+            return Err(invalid_arg("empty DOM has no view"));
+        }
+        catch_panic("WeakDom::view", || {
+            serde_json::to_string(&viewer.view(&dom))
+                .map_err(|error| upstream_error("serializing DOM view", error))
+        })
     }
 
     #[napi(js_name = "toXml")]

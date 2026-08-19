@@ -30,3 +30,8 @@ console.log(dom.getProperty(part, "Size")); // { Vector3: [2, 3, 4] }
 const xml = dom.toXml();
 const binary = dom.toBinary({ compression: "zstd" });
 ```
+
+The reusable reflector path is available through
+`ReflectionDatabase.fromApiDump(apiDump)`, and utility functions are also
+grouped under the `util` export (`convertFile`, `viewBinaryText`, and
+`removeProperty`).

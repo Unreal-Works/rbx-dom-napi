@@ -148,6 +148,7 @@ export class Attributes {
 export class ReflectionDatabase {
   constructor(value?: ReflectionDatabaseValue);
   static fromBinary(data: Uint8Array): ReflectionDatabase;
+  static fromApiDump(value: JsonValue): ReflectionDatabase;
   version(): number[];
   classNames(): string[];
   enumNames(): string[];
@@ -304,10 +305,18 @@ export function convertFile(
   options?: IoOptions,
 ): Buffer;
 export function viewBinary(data: Uint8Array): JsonValue;
+export function viewBinaryText(data: Uint8Array): string;
 export function removeProperty(
   data: Uint8Array,
   format: string,
   className: string,
   propertyName: string,
+  outputFormat?: string,
 ): Buffer;
+export const util: {
+  convertFile: typeof convertFile;
+  viewBinary: typeof viewBinary;
+  viewBinaryText: typeof viewBinaryText;
+  removeProperty: typeof removeProperty;
+};
 export function metadata(): JsonValue;

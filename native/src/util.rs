@@ -22,12 +22,22 @@ pub fn view_binary(data: Buffer) -> Result<String> {
     })
 }
 
+#[napi(js_name = "viewBinaryText")]
+pub fn view_binary_text(data: Buffer) -> Result<String> {
+    catch_panic("rbx_binary::text_format", || {
+        let model = rbx_binary::text_format::DecodedModel::from_reader(Cursor::new(data.to_vec()));
+        yaml_serde::to_string(&model)
+            .map_err(|error| upstream_error("serializing binary text view", error))
+    })
+}
+
 #[napi(js_name = "removeProperty")]
 pub fn remove_property(
     data: Buffer,
     format: String,
     class_name: String,
     property_name: String,
+    output_format: Option<String>,
 ) -> Result<Buffer> {
     let decode_options = IoOptions {
         property_behavior: Some("readUnknown".to_owned()),
@@ -38,6 +48,9 @@ pub fn remove_property(
         ..IoOptions::default()
     };
     let format = format.to_ascii_lowercase();
+    let output_format = output_format
+        .unwrap_or_else(|| format.clone())
+        .to_ascii_lowercase();
     let dom = Dom {
         inner: match format.as_str() {
             "xml" | "rbxmx" | "rbxlx" => Arc::new(Mutex::new(decode_xml_bytes(
@@ -67,11 +80,13 @@ pub fn remove_property(
         }
     }
 
-    match format.as_str() {
+    match output_format.as_str() {
         "xml" | "rbxmx" | "rbxlx" => Ok(Buffer::from(encode_xml_bytes(&inner, &encode_options)?)),
         "binary" | "rbxm" | "rbxl" => {
             Ok(Buffer::from(encode_binary_bytes(&inner, &encode_options)?))
         }
-        _ => Err(invalid_arg(format!("unknown input format {format:?}"))),
+        _ => Err(invalid_arg(format!(
+            "unknown output format {output_format:?}"
+        ))),
     }
 }

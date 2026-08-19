@@ -426,6 +426,12 @@ export class ReflectionDatabase {
     return value;
   }
 
+  static fromApiDump(value) {
+    const result = Object.create(ReflectionDatabase.prototype);
+    result._native = native.ReflectionDatabase.fromApiDump(json(value));
+    return result;
+  }
+
   version() {
     return this._native.version();
   }
@@ -623,7 +629,32 @@ export function viewBinary(data) {
   return parse(native.viewBinary(data));
 }
 
-export const removeProperty = native.removeProperty;
+export function viewBinaryText(data) {
+  return native.viewBinaryText(data);
+}
+
+export function removeProperty(
+  data,
+  format,
+  className,
+  propertyName,
+  outputFormat,
+) {
+  return native.removeProperty(
+    data,
+    format,
+    className,
+    propertyName,
+    outputFormat,
+  );
+}
+
+export const util = Object.freeze({
+  convertFile,
+  viewBinary,
+  viewBinaryText,
+  removeProperty,
+});
 
 export function metadata() {
   return parse(native.bindingMetadata());
