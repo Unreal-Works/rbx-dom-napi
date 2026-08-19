@@ -17,6 +17,7 @@ export declare class Dom {
   static fromRaw(rawJson: string): Dom
   snapshot(): string
   rootRef(): string
+  sourceReferents(): string
   root(): string
   rootMut(): Instance
   instance(referent: string): string | null

@@ -70,6 +70,10 @@ export class Dom {
     return this._native.instanceCount();
   }
 
+  sourceReferents() {
+    return parse(this._native.sourceReferents());
+  }
+
   root() {
     return parse(this._native.root());
   }

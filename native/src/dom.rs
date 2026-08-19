@@ -18,6 +18,7 @@ use rbx_types::{Ref, Variant};
 use rbx_xml::{DecodeOptions, DecodePropertyBehavior, EncodeOptions, EncodePropertyBehavior};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use xml::reader::{ParserConfig, XmlEvent};
 
 use crate::error::{catch_panic, invalid_arg, upstream_error};
 use crate::reflection::{normalize_database_json, ReflectionDatabase};
@@ -69,6 +70,27 @@ struct DomSnapshot {
 struct RawDom {
     root_ref: String,
     instances: BTreeMap<String, InstanceView>,
+}
+
+pub(crate) struct DecodedXml {
+    pub(crate) dom: WeakDom,
+    pub(crate) source_referents: BTreeMap<String, String>,
+}
+
+struct SourceItem {
+    path: Vec<usize>,
+    referent: String,
+}
+
+struct SourceItemPosition {
+    path: Vec<usize>,
+    child_count: usize,
+}
+
+struct SourceElement {
+    is_root: bool,
+    is_item: bool,
+    allows_items: bool,
 }
 
 fn parse_io_options(options_json: Option<&str>) -> Result<IoOptions> {
@@ -379,7 +401,91 @@ fn validate_transfer(dom: &WeakDom, referent: Ref, parent: Ref) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn decode_xml_bytes(data: Vec<u8>, options: &IoOptions) -> Result<WeakDom> {
+fn collect_source_referents(data: &[u8], dom: &WeakDom) -> Result<BTreeMap<String, String>> {
+    let reader = ParserConfig::new()
+        .ignore_comments(true)
+        .create_reader(Cursor::new(data));
+    let mut items = Vec::new();
+    let mut stack: Vec<SourceItemPosition> = Vec::new();
+    let mut elements: Vec<SourceElement> = Vec::new();
+    let mut root_count = 0;
+
+    for event in reader {
+        match event.map_err(|error| upstream_error("reading XML source referents", error))? {
+            XmlEvent::StartElement {
+                name, attributes, ..
+            } => {
+                let is_item = name.local_name == "Item"
+                    && elements.last().is_some_and(|element| element.allows_items);
+
+                if is_item {
+                    let path = if let Some(parent) = stack.last_mut() {
+                        let mut path = parent.path.clone();
+                        path.push(parent.child_count);
+                        parent.child_count += 1;
+                        path
+                    } else {
+                        let path = vec![root_count];
+                        root_count += 1;
+                        path
+                    };
+
+                    if let Some(referent) = attributes
+                        .into_iter()
+                        .filter(|attribute| attribute.name.local_name == "referent")
+                        .map(|attribute| attribute.value)
+                        .next_back()
+                    {
+                        items.push(SourceItem {
+                            path: path.clone(),
+                            referent,
+                        });
+                    }
+                    stack.push(SourceItemPosition {
+                        path,
+                        child_count: 0,
+                    });
+                }
+
+                let is_root = elements.is_empty() && name.local_name == "roblox";
+                elements.push(SourceElement {
+                    is_root,
+                    is_item,
+                    allows_items: is_root || is_item,
+                });
+            }
+            XmlEvent::EndElement { .. } => {
+                if let Some(element) = elements.pop() {
+                    if element.is_item {
+                        stack.pop();
+                    }
+                    if element.is_root {
+                        break;
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    items
+        .into_iter()
+        .map(|item| {
+            let mut instance = dom.root();
+            for child_index in item.path {
+                let child = instance.children().get(child_index).ok_or_else(|| {
+                    crate::error::failure("decoded DOM does not match XML item structure")
+                })?;
+                instance = dom.get_by_ref(*child).ok_or_else(|| {
+                    crate::error::failure("decoded DOM contains a missing child referent")
+                })?;
+            }
+            Ok((ref_string(instance.referent()), item.referent))
+        })
+        .collect()
+}
+
+pub(crate) fn decode_xml_bytes(data: Vec<u8>, options: &IoOptions) -> Result<DecodedXml> {
     catch_panic("rbx_xml::from_reader", || {
         if let Some(database_json) = options.reflection_database.as_ref() {
             let database_json = normalize_database_json(database_json)?;
@@ -398,13 +504,18 @@ fn decode_xml_with_database(
     data: Vec<u8>,
     options: &IoOptions,
     database: &UpstreamReflectionDatabase<'_>,
-) -> Result<WeakDom> {
+) -> Result<DecodedXml> {
     let mut decoder = DecodeOptions::new().reflection_database(database);
     if let Some(behavior) = parse_property_behavior(options.property_behavior.as_deref())? {
         decoder = decoder.property_behavior(behavior);
     }
-    rbx_xml::from_reader(Cursor::new(data), decoder)
-        .map_err(|error| upstream_error("rbx_xml::from_reader", error))
+    let dom = rbx_xml::from_reader(Cursor::new(data.as_slice()), decoder)
+        .map_err(|error| upstream_error("rbx_xml::from_reader", error))?;
+    let source_referents = collect_source_referents(&data, &dom)?;
+    Ok(DecodedXml {
+        dom,
+        source_referents,
+    })
 }
 
 pub(crate) fn encode_xml_bytes(dom: &WeakDom, options: &IoOptions) -> Result<Vec<u8>> {
@@ -897,6 +1008,7 @@ impl DomViewer {
 #[napi]
 pub struct Dom {
     pub(crate) inner: Arc<Mutex<WeakDom>>,
+    pub(crate) source_referents: BTreeMap<String, String>,
 }
 
 #[napi]
@@ -906,6 +1018,7 @@ impl Dom {
         catch_panic("WeakDom::new", || {
             Ok(Self {
                 inner: Arc::new(Mutex::new(dom_from_spec_json(&spec_json)?)),
+                source_referents: BTreeMap::new(),
             })
         })
     }
@@ -915,6 +1028,7 @@ impl Dom {
         catch_panic("WeakDom::from_raw", || {
             Ok(Self {
                 inner: Arc::new(Mutex::new(dom_from_raw_json(&raw_json)?)),
+                source_referents: BTreeMap::new(),
             })
         })
     }
@@ -928,6 +1042,12 @@ impl Dom {
     #[napi(js_name = "rootRef")]
     pub fn root_ref(&self) -> Result<String> {
         Ok(ref_string(lock_dom(&self.inner)?.root_ref()))
+    }
+
+    #[napi(js_name = "sourceReferents")]
+    pub fn source_referents(&self) -> Result<String> {
+        serde_json::to_string(&self.source_referents)
+            .map_err(|error| upstream_error("serializing source referents", error))
     }
 
     #[napi(js_name = "root")]
@@ -1337,8 +1457,10 @@ pub fn create_dom_from_raw(raw_json: String) -> Result<Dom> {
 #[napi(js_name = "readXml")]
 pub fn read_xml(data: Buffer, options_json: Option<String>) -> Result<Dom> {
     let options = parse_io_options(options_json.as_deref())?;
+    let decoded = decode_xml_bytes(data.to_vec(), &options)?;
     Ok(Dom {
-        inner: Arc::new(Mutex::new(decode_xml_bytes(data.to_vec(), &options)?)),
+        inner: Arc::new(Mutex::new(decoded.dom)),
+        source_referents: decoded.source_referents,
     })
 }
 
@@ -1350,12 +1472,10 @@ pub fn read_xml_with_database(
 ) -> Result<Dom> {
     let options = parse_io_options(options_json.as_deref())?;
     let database = database.parsed()?;
+    let decoded = decode_xml_with_database(data.to_vec(), &options, &database)?;
     Ok(Dom {
-        inner: Arc::new(Mutex::new(decode_xml_with_database(
-            data.to_vec(),
-            &options,
-            &database,
-        )?)),
+        inner: Arc::new(Mutex::new(decoded.dom)),
+        source_referents: decoded.source_referents,
     })
 }
 
@@ -1364,6 +1484,7 @@ pub fn read_binary(data: Buffer, options_json: Option<String>) -> Result<Dom> {
     let options = parse_io_options(options_json.as_deref())?;
     Ok(Dom {
         inner: Arc::new(Mutex::new(decode_binary_bytes(data.to_vec(), &options)?)),
+        source_referents: BTreeMap::new(),
     })
 }
 
@@ -1380,6 +1501,7 @@ pub fn read_binary_with_database(
             data.to_vec(),
             &database,
         )?)),
+        source_referents: BTreeMap::new(),
     })
 }
 
@@ -1406,7 +1528,7 @@ pub fn convert_file(
         encode_options.property_behavior = Some("writeUnknown".to_owned());
     }
     let dom = match from_format.as_str() {
-        "xml" | "rbxmx" | "rbxlx" => decode_xml_bytes(data.to_vec(), &decode_options)?,
+        "xml" | "rbxmx" | "rbxlx" => decode_xml_bytes(data.to_vec(), &decode_options)?.dom,
         "binary" | "rbxm" | "rbxl" => decode_binary_bytes(data.to_vec(), &decode_options)?,
         _ => return Err(invalid_arg(format!("unknown input format {from_format:?}"))),
     };

@@ -157,6 +157,31 @@ test("camelCase options and large integer variants stay lossless", () => {
   assert.deepEqual(rbx.types.variant({ Int64: large }), { Int64: large });
 });
 
+test("XML reads expose internal-to-authored source referents", () => {
+  const xml = Buffer.from(`
+    <roblox version="4" xmlns:source="urn:source">
+      <External><Item class="Folder" referent="Ignored" /></External>
+      <Item class="Folder" referent="IgnoredFirst" source:referent="AuthoredTop">
+        <Item class="Folder" referent="AuthoredNested" />
+        <Item class="Folder" />
+      </Item>
+      <Item class="Folder" referent="AuthoredSibling" />
+    </roblox>
+    <roblox version="4"><Item class="Folder" referent="IgnoredTrailing" /></roblox>
+  `);
+  const dom = rbx.readXml(xml);
+  const [top, sibling] = dom.children(dom.rootRef);
+  const [nested, withoutReferent] = dom.children(top);
+
+  assert.deepEqual(dom.sourceReferents(), {
+    [nested]: "AuthoredNested",
+    [sibling]: "AuthoredSibling",
+    [top]: "AuthoredTop",
+  });
+  assert.equal(dom.sourceReferents()[withoutReferent], undefined);
+  assert.deepEqual(rbx.readBinary(dom.toBinary()).sourceReferents(), {});
+});
+
 test("live instance handles, builders, raw DOMs, and external operations are available", () => {
   const source = rbx.createDom({
     className: "DataModel",

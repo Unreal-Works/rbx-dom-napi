@@ -49,6 +49,7 @@ export class Dom {
   static fromRaw(value: RawDom): Dom;
   readonly rootRef: string;
   readonly instanceCount: number;
+  sourceReferents(): Record<string, string>;
   root(): InstanceView;
   rootMut(): Instance;
   snapshot(): DomSnapshot;

@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use std::collections::BTreeMap;
 use std::io::Cursor;
 use std::sync::{Arc, Mutex};
 
@@ -53,16 +54,16 @@ pub fn remove_property(
         .to_ascii_lowercase();
     let dom = Dom {
         inner: match format.as_str() {
-            "xml" | "rbxmx" | "rbxlx" => Arc::new(Mutex::new(decode_xml_bytes(
-                data.to_vec(),
-                &decode_options,
-            )?)),
+            "xml" | "rbxmx" | "rbxlx" => Arc::new(Mutex::new(
+                decode_xml_bytes(data.to_vec(), &decode_options)?.dom,
+            )),
             "binary" | "rbxm" | "rbxl" => Arc::new(Mutex::new(decode_binary_bytes(
                 data.to_vec(),
                 &decode_options,
             )?)),
             _ => return Err(invalid_arg(format!("unknown input format {format:?}"))),
         },
+        source_referents: BTreeMap::new(),
     };
 
     let mut inner = dom
